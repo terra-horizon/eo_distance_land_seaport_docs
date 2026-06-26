@@ -1,0 +1,55 @@
+name: Deploy Docs (On-Demand)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Documentation Version"
+        required: true
+        default: "latest"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - ".github/workflows/deploy-docs-on-demand.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    defaults:
+      run:
+        working-directory: docs
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          pip install mkdocs mkdocs-material mike neoteroi-mkdocs pymdown-extensions
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch existing gh-pages branch
+        continue-on-error: true
+        run: git fetch origin gh-pages:gh-pages
+
+      - name: Publish docs
+        env:
+          DOC_VERSION: ${{ github.event.inputs.version || 'latest' }}
+        run: |
+          mike deploy --push --update-aliases "$DOC_VERSION" latest --config-file mkdocs.yml
+          mike set-default --push latest --config-file mkdocs.yml
